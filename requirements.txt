@@ -1,1 +1,2 @@
-flask
+Flask==2.2.2
+youtube-transcript-api==0.6.0
