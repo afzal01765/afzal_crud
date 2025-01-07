@@ -2,49 +2,73 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-# In-memory storage for items (usually you would use a database)
-items = {}
+# Sample data (can be replaced with a database)
+books = {
+    1: {'id': 1, 'name': 'John Doe', 'email': 'johndoe@example.com'},
+    2: {'id': 2, 'name': 'Jane Smith', 'email': 'janesmith@example.com'}
+}
 
-@app.route('/items', methods=['GET'])
-def get_items():
-    """Retrieve all items"""
-    return jsonify(items), 200
+# Get all books
+@app.route('/books', methods=['GET'])
+def get_books():
+    return books
 
-@app.route('/item/<item_id>', methods=['GET'])
-def get_item(item_id):
-    """Retrieve a single item"""
-    item = items.get(item_id)
-    if item is None:
-        return jsonify({'error': 'Item not found'}), 404
-    return jsonify(item), 200
 
-@app.route('/item', methods=['POST'])
-def create_item():
-    """Create a new item"""
-    data = request.get_json()
-    item_id = data.get('id')
-    if not item_id or item_id in items:
-        return jsonify({'error': 'Invalid or duplicate item ID'}), 400
-    items[item_id] = data
-    return jsonify({'message': 'Item created'}), 201
+# Get a specific book by ID
+@app.route('/books/<int:book_id>', methods=['GET'])
+def get_book(book_id):
+    for book in books:
+        if book['id']==book_id:
+            return book
 
-@app.route('/item/<item_id>', methods=['PUT'])
-def update_item(item_id):
-    """Update an existing item"""
-    item = items.get(item_id)
-    if item is None:
-        return jsonify({'error': 'Item not found'}), 404
-    data = request.get_json()
-    items[item_id] = data
-    return jsonify({'message': 'Item updated'}), 200
+    return {'error':'Book not found'}
 
-@app.route('/item/<item_id>', methods=['DELETE'])
-def delete_item(item_id):
-    """Delete an existing item"""
-    item = items.pop(item_id, None)
-    if item is None:
-        return jsonify({'error': 'Item not found'}), 404
-    return jsonify({'message': 'Item deleted'}), 200
+# Create a book
+@app.route('/books', methods=['POST'])
+def create_book():
+    new_book={'id':len(books)+1, 'title':request.json['title'], 'author':request.json['author']}
+    books.append(new_book)
+    return new_book
 
+
+# Update a book
+@app.route('/books/<int:book_id>', methods=['PUT'])
+def update_book(book_id):
+    for book in books:
+        if book['id']==book_id:
+            book['title']=request.json['title']
+            book['author']=request.json['author']
+            return book 
+    return {'error':'Book not found'}
+
+# Delete a book
+@app.route('/books/<int:book_id>', methods=['DELETE'])
+def delete_book(book_id):
+    for book in books:
+        if book['id']==book_id:
+            books.remove(book)
+            return {"data":"Book Deleted Successfully"}
+
+    return {'error':'Book not found'}
+
+
+@app.route('/uploadbook', methods=['POST'])
+def uploadbook():
+    import os
+    uploaded_file = request.files['file']
+    if uploaded_file and allowed_file(uploaded_file.filename):
+        destination = os.path.join('uploads/',uploaded_file.filename)
+        uploaded_file.save(destination)
+        return {'data':'File Uploaded Successfully'}
+
+    else:
+        return {'error':'File upload failed, or invalid file type'}
+
+
+def allowed_file(filename):
+    ALLOWED_EXTS = ['png', 'jpg', 'jpeg']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTS
+
+# Run the flask App
 if __name__ == '__main__':
     app.run(debug=True)
