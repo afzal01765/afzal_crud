@@ -45,4 +45,4 @@ def delete_item(item_id):
     return jsonify({"error": "Item not found"}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
