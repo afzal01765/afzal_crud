@@ -1,34 +1,63 @@
-from flask import Flask, request, jsonify
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, VideoUnavailable, NoTranscriptFound
-#For test Url 
-#  http://127.0.0.1:5000/api/youtube-to-text?video_id=dQw4w9WgXcQ
+from flask import Flask, jsonify, request
+import os
 
 app = Flask(__name__)
 
-@app.route('/api/youtube-to-text', methods=['GET'])
-def youtube_to_text():
-    video_id = request.args.get('video_id')  # Get the video ID from the query parameter
+books_data = [{"id": 0, "title": "book1", "author": "author1"},
+              {"id": 2, "title": "book2", "author": "author2"},
+              {"id": 1, "title": "book0", "author": "author0"}]
 
-    if not video_id:
-        return jsonify({"error": "Missing required parameter: video_id"}), 400
+@app.route("/books")
+def books():
+    return jsonify(books_data)
 
-    try:
-        # Fetch the transcript for the given video ID
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+@app.route("/books/<int:book_id>", methods=["GET"])
+def get_by_id(book_id):
+    for book in books_data:
+        if book["id"] == book_id:
+            return jsonify(book)
+    return jsonify({"Error": "This book is not found"})
 
-        # Combine the transcript text into a single string
-        transcript_text = ' '.join([entry['text'] for entry in transcript])
+@app.route('/books', methods=['POST'])
+def create_book():
+    new_book = {"id": len(books_data) + 1, "title": request.json["title"], "author": request.json["author"]}
+    books_data.append(new_book)
+    return jsonify(new_book)
 
-        return jsonify({"transcript": transcript_text}), 200
+@app.route("/books/<int:book_id>", methods=["PUT"])
+def update_book(book_id):
+    for book in books_data:
+        if book["id"] == book_id:
+            book["title"] = request.json["title"]
+            book["author"] = request.json["author"]
+            return jsonify(book)
+    return jsonify({"Error": "This book is not found"})
 
-    except TranscriptsDisabled:
-        return jsonify({"error": "Transcripts are disabled for this video."}), 403
-    except VideoUnavailable:
-        return jsonify({"error": "The requested video is unavailable or does not exist."}), 404
-    except NoTranscriptFound:
-        return jsonify({"error": "No transcript found for this video."}), 404
-    except Exception as e:
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+@app.route("/books/<int:book_id>", methods=["DELETE"])
+def delete_book(book_id):
+    for book in books_data:
+        if book["id"] == book_id:
+            books_data.remove(book)
+            return jsonify({"Message": "This book deleted successfully"})
+    return jsonify({"Error": "This book is not found"})
 
-if __name__ == '__main__':
+def allowed_file(filename):
+    ALLOWED_EXTS = ['png', 'jpg', 'jpeg']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTS
+
+@app.route("/upload_book", methods=["POST"])
+def upload_book():
+    upload_file = request.files.get('file')
+    if upload_file and allowed_file(upload_file.filename):
+        destination = os.path.join("uploads/", upload_file.filename)
+        upload_file.save(destination)
+        return jsonify({"Message": "File uploaded successfully"})
+    else:
+        return jsonify({"Error": "Invalid file type or no file provided"})
+
+# The entry point for Vercel serverless functions.
+def handler(request):
+    return app(request)
+
+if __name__ == "__main__":
     app.run(debug=True)
